@@ -1,74 +1,133 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import cv2
-import os
+import numpy as np
+from scipy.misc import imread, imresize
+from sklearn.utils import shuffle
 
-def random_drop(data):
-    index = data[abs(data['steer'])<.05].index.tolist()
-    rows = [i for i in index if np.random.randint(10) < 8]
-    data = data.drop(data.index[rows])
-    print("Dropped %s rows with low steering"%(len(rows)))
+DATA_PATH = "../CarND-Behavioral-Cloning-P3-Other/data1"
+
+def generator(samples, batch_size=32):
+    while True: # Loop forever so the generator never terminates
+        shuffle(samples)
+        num_samples = len(samples)
+        for offset in range(0, num_samples, batch_size):
+            batch_samples = samples[offset:offset+batch_size]
+            images, angles = read_imgs(batch_samples)
+            # yield shuffle(images, angles)
+            batch_imgs, batch_angles = augment(preprocess(images), angles)
+            yield shuffle(batch_imgs, batch_angles)
+
+def read_imgs(samples):
+    size = len(samples)
+    images = np.empty([size * 3, 160, 320, 3])
+    angles = np.empty([size * 3])
+
+    for i, sample in enumerate(samples):
+        images[3 * (i + 1) - 3] = imread(DATA_PATH + '/IMG/'+sample[0].split('/')[-1])
+        images[3 * (i + 1) - 2] = imread(DATA_PATH + '/IMG/'+sample[1].split('/')[-1])
+        images[3 * (i + 1) - 1] = imread(DATA_PATH + '/IMG/'+sample[2].split('/')[-1])
+
+        # create adjusted steering measurements for the side camera images
+        correction = 0.08 # this is a parameter to tune
+
+        angles[3 * (i + 1) - 3] = float(sample[3])
+        angles[3 * (i + 1) - 2] = float(sample[3]) + correction
+        angles[3 * (i + 1) - 1] = float(sample[3]) - correction
+
+    return images, angles
+
+def preprocess(imgs):
+    imgs = crop(imgs, cropping=((64, 24), (0, 0)))
+    # imgs = resize(imgs, shape=(16, 32, 3))
+    # imgs = rgb2gray(imgs)
+    # imgs = normalize(imgs)
+
+    return imgs
+
+def normalize(imgs):
+    """
+    Normalize images between [-1, 1].
+    """
+    return imgs / (255.0 / 2) - 1
+
+def rgb2gray(imgs):
+    """
+    Convert images to grayscale.
+    """
+    return np.mean(imgs, axis=3, keepdims=True)
+
+
+def crop(imgs, cropping=((0,0),(0,0)), shape=(160, 320, 3)):
+    """
+    Crop useless information
+    """
+    height, width, channels = shape
+    imgs_crop = np.empty([len(imgs), height - (cropping[0][0] + cropping[0][1]), width - (cropping[1][0] + cropping[1][1]), channels])
+    for i, img in enumerate(imgs):
+        # NOTE: its img[y: y + h, x: x + w] and *not* img[x: x + w, y: y + h]
+        imgs_crop[i] = img[cropping[0][0]: height - cropping[0][1], cropping[1][0] : width - cropping[1][1]]
+    return imgs_crop
+
+def resize(imgs, shape=(6, 32, 3)):
+    """
+    Resize images to shape.
+    """
+    height, width, channels = shape
+    imgs_resized = np.empty([len(imgs), height, width, channels])
+    for i, img in enumerate(imgs):
+        imgs_resized[i] = imresize(img, shape)
+
+    return imgs_resized
+
+def random_flip(imgs, angles):
+    """
+    Augment the data by randomly flipping some angles / images horizontally.
+    """
+    new_imgs = np.empty_like(imgs)
+    new_angles = np.empty_like(angles)
+    for i, (img, angle) in enumerate(zip(imgs, angles)):
+        if np.random.choice(2):
+            new_imgs[i] = np.fliplr(img)
+            new_angles[i] = angle * -1
+        else:
+            new_imgs[i] = img
+            new_angles[i] = angle
+
+    return new_imgs, new_angles
+
+def trans(imgs, angles):
+    new_imgs = np.empty_like(imgs)
+    new_angles = np.empty_like(angles)
+    for i, (img, angle) in enumerate(zip(imgs, angles)):
+        trans_range = 100
+        tr_x = trans_range * np.random.uniform() - trans_range / 2
+        new_angles[i] = angle + tr_x / trans_range * 2 * .2
+
+        tr_y = 0
+        M = np.float32([[1, 0, tr_x], [0, 1, tr_y]])
+        new_imgs[i] = cv2.warpAffine(img, M, (320,72))
+    return new_imgs, new_angles
+
+def augment(imgs, angles):
+    imgs, angles = trans(imgs, angles)
+    imgs, angles = random_flip(imgs, angles)
+
+    return imgs, angles
+
+def random_drop(samples):
+    data = []
+    for i, sample in enumerate(samples):
+        if float(sample[3]) < .05 and np.random.choice(10) >= 8:
+            data.append(sample)
     return data
 
-def preprocess(img_path):
-    img = plt.imread(img_path)
-    return img[60:135, : ]
+if __name__ == '__main__':
+    shape=(160, 320, 3)
+    height, width, channels = shape
+    name = 'data/IMG/'+ 'IMG/center_2016_12_01_13_33_02_662.jpg'.split('/')[-1]
+    center_image = cv2.imread(name)
 
-def random_process(data, value, data_path):
-    random = np.random.randint(4)
-    if (random == 0):
-        img_path = data['left'][value].strip()
-        shift_ang = .25
-    elif (random == 1 or random == 3):
-        img_path = data['center'][value].strip()
-        shift_ang = 0.
-    elif (random == 2):
-        img_path = data['right'][value].strip()
-        shift_ang = -.25
-
-    img = preprocess(os.path.join(data_path, img_path))
-    angle = float(data['steer'][value]) + shift_ang
-    return img, angle
-
-
-def trans_image(image, steer):
-    trans_range = 100
-    tr_x = trans_range * np.random.uniform() - trans_range / 2
-    steer_ang = steer + tr_x / trans_range * 2 * .2
-    tr_y = 0
-    M = np.float32([[1, 0, tr_x], [0, 1, tr_y]])
-    image_tr = cv2.warpAffine(image, M, (320,75))
-    return image_tr, steer_ang
-
-
-def generator0(data, batch_size, data_path):
-    while 1:
-        batch = data.sample(n=batch_size)
-        features = np.empty([batch_size, 75, 320, 3])
-        labels = np.empty([batch_size, 1])
-        for i, value in enumerate(batch.index.values):
-            # Randomly select right, center or left image
-            img, steer_ang = random_process(data, value, data_path)
-            img = img.reshape(img.shape[0], img.shape[1], 3)
-            # Random Translation Jitter
-            img, steer_ang = trans_image(img, steer_ang)
-            # Randomly Flip Images
-            random = np.random.randint(1)
-            if (random == 0):
-                img, steer_ang = np.fliplr(img), -steer_ang
-            features[i] = img
-            labels[i] = steer_ang
-            yield np.array(features), np.array(labels)
-
-def generator1(data, data_path):
-    """
-    Validation Generator
-    """
-    while 1:
-        for i in range(len(data)):
-            img_path = data['center'][i].strip()
-            img = preprocess(os.path.join(data_path, img_path))
-            img = img.reshape(1, img.shape[0], img.shape[1], 3)
-            steer_ang = data['steer'][i]
-            steer_ang = np.array([[steer_ang]])
-            yield img, steer_ang
+    cropping=((64,36),(0,0))
+    crop_img = center_image[cropping[0][0]: height - cropping[0][1], cropping[1][0] : width - cropping[1][1]] # Crop from x, y, w, h -> 100, 200, 300, 400
+    # NOTE: its img[y: y + h, x: x + w] and *not* img[x: x + w, y: y + h]
+    cv2.imshow("cropped", crop_img)
+    cv2.waitKey(0)

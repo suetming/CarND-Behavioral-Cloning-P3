@@ -5,8 +5,7 @@ This project was done as part of Udacity's Self-Driving Car Nanodegree Program. 
 
 The model was only trained on track 1 data, to see the model performance click the following links:
 
-* [Track 1](https://youtu.be/WzMiriCVSTI)
-* [Track 2](https://youtu.be/4SYe9758P_Q)
+* video.mp4
 
 [//]: # (Image References)
 [invidia_model]: ./images/invidia_model.jpeg "Nvidia Model"
@@ -29,7 +28,7 @@ My project includes the following files:
 
 ####1. Solution Design Approach
 
-Based on previous study course, There are a lot of neural network model, I want test some model, such as [comma.ai](https://github.com/commaai/research/blob/master/train_steering_model.py),  [Nvidia](http://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf), [AlexNet](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) ... . These model performance which I thought is very well, However my mac book pro with GPU (GeForce 540M) and CPU(2.7 GHz Intel Core i7) can't not handle some of these model. As a result, The final model architecture as same as nvidia (model.py lines 18-24) consisted of a convolution neural network. The Nvidia model as shown in the figure below:
+Based on previous study course, There are a lot of neural network model, I want test some model, such as [comma.ai](https://github.com/commaai/research/blob/master/train_steering_model.py),  [Nvidia](http://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf), [AlexNet](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) ... . These model performance which I thought is very well, However my mac book pro with GPU (GeForce 540M) and CPU(2.7 GHz Intel Core i7) can't not handle some of these model. As a result, The final model architecture as same as nvidia (model.py lines 25-65) consisted of a convolution neural network. The Nvidia model as shown in the figure below:
 
 ![Nvidia Model][invidia_model]
 
@@ -49,7 +48,7 @@ To capture good driving behavior, I first recorded two laps on track one using c
 #### Cropping Image
 
 The cameras in the simulator capture 160 pixel by 320 pixel images.
-Not all of these pixels contain useful information, however. In the image above, the top portion of the image captures trees and hills and sky, and the bottom portion of the image captures the hood of the car. The code for the same is at [line 18 of utils.py](https://github.com/sumitbinnani/CarND-Behavioral-Cloning-P3/blob/master/utils.py#L18).
+Not all of these pixels contain useful information, however. In the image above, the top portion of the image captures trees and hills and sky, and the bottom portion of the image captures the hood of the car. The code for the same is at [line 39 of utils.py](https://github.com/sumitbinnani/CarND-Behavioral-Cloning-P3/blob/master/utils.py#L18).
 
 ![Cropped Image][cropped_image]
 

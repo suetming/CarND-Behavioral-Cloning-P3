@@ -98,7 +98,7 @@ history = model.fit_generator(generator(train_samples, batch_size=64), \
 #                              validation_data=generator1(validation_data, DATA_PATH), nb_val_samples=len(validation_data))
 
 
-model.save('model/model.3.h5')
+model.save('model.h5')
 exit()
 
 # release memory
